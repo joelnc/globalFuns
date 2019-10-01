@@ -70,25 +70,63 @@ tableFun <- function(hourlyMod) {
 }
 
 ## Print sorted table to console of annual discrepencies
-tableFunAbs <- function(hourlyMod) {
-
-    ## Need to sum lcdMod2 by date,
+tableFunAbs <- function(hourlyMod, sortBy) {
+    
+    ## Group adjusted hourly records by date, sum by date
     lcdDaily <- hourlyMod %>%
         group_by(Date) %>%
         summarize(hourlyDailyP=sum(pcp, na.rm=TRUE)) %>%
+        mutate(yr=as.numeric(format(Date, "%Y"))) %>%
         as.data.frame()
 
     ## Then merge hourly date totals with gncn date totals
     newTab <- merge(lcdDaily, daily, by.x="Date", by.y="dt", all=TRUE)
+
+    ## Abs daily diffs, for summing by year
     newTab$absDailyDiff <- abs(newTab$pcpIn-newTab$hourlyDailyP)
 
-    ## then sum of abs diffs grouped by year
+    ## Daily diffs, for identifying biggest daily diff per cal yr 
+    newTab$rawDailyDiff <- newTab$pcpIn-newTab$hourlyDailyP # pos=ghcn higher
+
+    ## Then sum of abs diffs grouped by year
     finalTab <- newTab %>%
-        group_by(yr) %>%
-        summarize(absSum=sum(absDailyDiff,na.rm=TRUE)) %>%
+        group_by(yr.y) %>%
+        summarize(absAnnSum=sum(absDailyDiff, na.rm=TRUE)) %>% #,
+                  ## annMaxDif=max(rawDailyDiff,na.rm=TRUE)) %>%
         as.data.frame()
 
-    finalTab <- finalTab[order(finalTab$absSum, decreasing=TRUE),]
+    ## Initialize columns in final table for max daily discrepencies
+    finalTab$maxDailyDiff <- NA
+    finalTab$diffDate <- as.Date(NA)
+
+    ## loop over table and write. Clunky, but fast enough
+    for (i in 1:nrow(finalTab)) {
+        ## Index rows that are of year i 
+        yrIndex <- which(newTab$yr.y==finalTab$yr.y[i])
+
+        tempTable <- newTab[yrIndex,]
+
+        winner <- which.max(abs(tempTable$rawDailyDiff))
+
+        if (length(winner)==0) {
+            finalTab$maxDailyDiff[i] <- NA
+            finalTab$diffDate[i] <- NA
+        } else {
+            finalTab$maxDailyDiff[i] <- tempTable$rawDailyDiff[winner]  
+            finalTab$diffDate[i] <- as.Date(tempTable$Date[winner])
+        }
+    }
+    
+    ## sort and write out table
+    if (missing(sortBy)) {
+        finalTab <- finalTab[order(finalTab$absAnnSum, decreasing=TRUE),]
+    } else if (sortBy=="byYear") {
+        finalTab <- finalTab[order(finalTab$absAnnSum, decreasing=TRUE),]
+    } else {
+        finalTab <- finalTab[order(abs(finalTab$maxDailyDiff), decreasing=TRUE),]
+    }
+    
+    
     head(finalTab,40)
 }
 
