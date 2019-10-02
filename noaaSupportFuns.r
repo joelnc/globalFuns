@@ -71,16 +71,16 @@ tableFun <- function(hourlyMod) {
 
 ## Print sorted table to console of annual discrepencies
 tableFunAbs <- function(hourlyMod, sortBy) {
-    
+
     ## Group adjusted hourly records by date, sum by date
-    lcdDaily <- hourlyMod %>%
+    hrDaily <- hourlyMod %>%
         group_by(Date) %>%
         summarize(hourlyDailyP=sum(pcp, na.rm=TRUE)) %>%
         mutate(yr=as.numeric(format(Date, "%Y"))) %>%
         as.data.frame()
 
     ## Then merge hourly date totals with gncn date totals
-    newTab <- merge(lcdDaily, daily, by.x="Date", by.y="dt", all=TRUE)
+    newTab <- merge(hrDaily, daily, by.x="Date", by.y="dt", all=TRUE)
 
     ## Abs daily diffs, for summing by year
     newTab$absDailyDiff <- abs(newTab$pcpIn-newTab$hourlyDailyP)
@@ -94,9 +94,9 @@ tableFunAbs <- function(hourlyMod, sortBy) {
         summarize(absAnnSum=sum(absDailyDiff, na.rm=TRUE)) %>% #,
                   ## annMaxDif=max(rawDailyDiff,na.rm=TRUE)) %>%
         as.data.frame()
-
+    
     ## Initialize columns in final table for max daily discrepencies
-    finalTab$maxDailyDiff <- NA
+   finalTab$maxDailyDiff <- NA
     finalTab$diffDate <- as.Date(NA)
 
     ## loop over table and write. Clunky, but fast enough
@@ -126,30 +126,42 @@ tableFunAbs <- function(hourlyMod, sortBy) {
         finalTab <- finalTab[order(abs(finalTab$maxDailyDiff), decreasing=TRUE),]
     }
     
-    
-    head(finalTab,40)
+    head(finalTab,60)
 }
 
 
 ## Pop daily diffs plotly, and write csv file for "inspect this yr"
+## need to add to this to write test files with LCD and CDO for confirming
+## hourly daily discrpencies...
+
 ddfFun <- function(hourlyMod, year) {
 
+    ## Tack a date on (why not here already?)
     useTz <- attr(hourlyMod$dtLoc[1], "tzone")
     hourlyMod$Date <- as.Date(hourlyMod$dtLoc, tz=useTz)
 
-    ## plotly daily diffs for yr
-    lcd_hourly <- hourlyMod %>%
+    ## Filter combined hourly down to yr of interst
+    comb_hourly <- hourlyMod %>%
         filter(yr==year)
 
-    lcd_daily  <- lcd_hourly %>%
+    ## Group sum by day/date
+    comb_daily  <- comb_hourly %>%
         group_by(Date) %>%
         summarize(pcpTot=sum(pcp, na.rm=TRUE)) %>%
         as.data.frame()
 
-    
+    ## Filter daily down to year of interst only 
     dailyF <- daily %>%
         filter(yr==year)
 
+    ## Also filter down pure cdo and lcd for confirming gaps, etc
+    lcdCur <- lcd %>%
+        filter(yr==year)
+    cdoCur <- cdo %>%
+        filter(yr==year)
+    
+
+    ## Colors and plotting of daily vs combined hourly
     dailyCol <- 'rgb(26,26,255)'
     lcdCol <- 'rgb(255,83,26)'
 
@@ -160,16 +172,25 @@ ddfFun <- function(hourlyMod, year) {
                   name="GHCN",
                   marker = list(color = dailyCol, symbol="circle")
                   ) %>%
-        add_trace(x=lcd_daily$Date,
-                  y=lcd_daily$pcpTot,
+        add_trace(x=comb_daily$Date,
+                  y=comb_daily$pcpTot,
                   type="scatter", mode="markers",
-                  name="LCD",          
+                  name="HPCP/LCD",          
                   marker = list (color = lcdCol, symbol="circle")
                   )
-    ## Csv file for yr
-    write.table(lcd_hourly[,1:8], file="NOAA/test.csv",
+    ## Csv file for combined yr
+    write.table(comb_hourly[,1:8],
+                file=paste0("NOAA/combHourly_", year,".csv"),
+                sep=",", row.names=FALSE)
+    ## Csv files rawish lcd and cdo
+    write.table(lcdCur,
+                file=paste0("NOAA/lcd_", year,".csv"),
+                sep=",", row.names=FALSE)
+    write.table(cdoCur,
+                file=paste0("NOAA/cdo_", year,".csv"),
                 sep=",", row.names=FALSE)
 
+    
     ## Plot call
     tsP
 
