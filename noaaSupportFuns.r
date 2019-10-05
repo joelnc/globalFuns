@@ -5,6 +5,39 @@ library(DT)
 ## Collection of support functions for filtering NOAA LCD records
 ## down to match GHCN daily totals
 
+## fun to take final hourly data set and compute hr/daily discrepencies by year,
+## write out to a csv that i cna add notes to / cross check
+reportFun <- function(hourlyMod) {
+
+    ## Group hourly data in to a year daily table
+    hrData <- hourlyMod %>%
+        group_by(Date) %>%
+        summarize(dailyHrSum=sum(pcp, na.rm=TRUE)) %>%
+        as.data.frame()
+    
+    ## Then merge hourly date totals with gncn date totals
+    newTab <- merge(hrData, daily, by.x="Date", by.y="dt", all=TRUE)
+    newTab$DailyDiff <- newTab$pcpIn-newTab$dailyHrSum
+    
+    ## Sort by abs value and return
+    newTab$AbsDailyDiff <- abs(newTab$DailyDiff)
+
+    newTabSort <- newTab %>%
+        mutate(yr=as.numeric(format(Date, "%Y"))) %>%
+        group_by(yr) %>%
+        arrange(desc(AbsDailyDiff)) %>%
+        as.data.frame()
+    
+
+    newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
+
+    write.csv(newTabSort[which(newTabSort$AbsDailyDiff>=0.05),],
+              file="reportTest.csv")
+    return(newTabSort[which(newTabSort$AbsDailyDiff>=0.05),c(1,2,4,5,8)])
+    ## head(newTabSort[,c(1,2,4,5,8)],40)
+    ## head(newTab[,c(1,2,4,5,8)],40)
+}
+
 
 ## Minutes after the hour analysis function
 ## 
@@ -58,16 +91,6 @@ minFun <- function(hourlyMod, year) {
 
 }
 
-
-## Print sorted table to console of annual discrepencies
-tableFun <- function(hourlyMod) {
-
-    mm <- merge(dailyTab, hourlyMod, all=TRUE)
-    colnames(mm)<- c("yr", "daily" ,"hourly")
-    mm$Diff <- mm$hourly-mm$daily
-    mm <- mm[order(mm$Diff, decreasing=TRUE),]
-    head(mm,20)
-}
 
 ## Print sorted table to console of annual discrepencies
 tableFunAbs <- function(hourlyMod, sortBy) {
@@ -129,11 +152,37 @@ tableFunAbs <- function(hourlyMod, sortBy) {
     head(finalTab,60)
 }
 
+## New fun inspired by Atl 1996, lots of small diffs.
+## return table of daily diffs for given calendar year
+dailyDiffsTable <- function(hourlyMod, year) {
+
+    ## filter and group hourly data in to a year specifici daily table
+    hrData <- hourlyMod %>%
+        mutate(yr=as.numeric(format(Date, "%Y"))) %>%
+        filter(yr==year) %>%
+        group_by(Date) %>%
+        summarize(dailyHrSum=sum(pcp, na.rm=TRUE)) %>%
+        as.data.frame()
+
+    ## Filter daily down to year of interst only 
+    dailyF <- daily %>%
+        filter(yr==year)
+    
+    ## Then merge hourly date totals with gncn date totals
+    newTab <- merge(hrData, dailyF, by.x="Date", by.y="dt", all=TRUE)
+    newTab$DailyDiff <- newTab$pcpIn-newTab$dailyHrSum
+    
+    ## Sort by abs value and return
+    newTab$AbsDailyDiff <- abs(newTab$DailyDiff)
+    newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
+    head(newTab[,c(1,2,4,5,8)],60)
+
+}
+
 
 ## Pop daily diffs plotly, and write csv file for "inspect this yr"
 ## need to add to this to write test files with LCD and CDO for confirming
 ## hourly daily discrpencies...
-
 ddfFun <- function(hourlyMod, year) {
 
     ## Tack a date on (why not here already?)
@@ -156,9 +205,13 @@ ddfFun <- function(hourlyMod, year) {
 
     ## Also filter down pure cdo and lcd for confirming gaps, etc
     lcdCur <- lcd %>%
-        filter(yr==year)
+        filter(yr==year) %>%
+        select(DATE,REPORT_TYPE,SOURCE,dtLoc,pcp,pcpFlag,
+               HourlyPrecipitation, min)
     cdoCur <- cdo %>%
-        filter(yr==year)
+        filter(yr==year) %>%
+        select(STATION,HPCP,Measurement.Flag,
+               Quality.Flag, dt, dtLoc, min, hrMin)
     
 
     ## Colors and plotting of daily vs combined hourly
@@ -196,4 +249,16 @@ ddfFun <- function(hourlyMod, year) {
 
     ## Dt table for yr?
 
+}
+
+
+
+## Print sorted table to console of annual discrepencies
+tableFun <- function(hourlyMod) {
+
+    mm <- merge(dailyTab, hourlyMod, all=TRUE)
+    colnames(mm)<- c("yr", "daily" ,"hourly")
+    mm$Diff <- mm$hourly-mm$daily
+    mm <- mm[order(mm$Diff, decreasing=TRUE),]
+    head(mm,20)
 }
