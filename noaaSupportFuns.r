@@ -6,8 +6,7 @@ library(DT)
 ## down to match GHCN daily totals
 
 
-## Minutes after the hour analysis function
-## 
+## Minutes after the hour analysis function 
 minFun <- function(hourlyMod, year) {
 
     bb <- filter(hourlyMod, yr==year)
@@ -69,7 +68,7 @@ tableFun <- function(hourlyMod) {
     head(mm,20)
 }
 
-## Print sorted table to console of annual discrepencies
+## Print sorted table to console of abs annual discrepencies
 tableFunAbs <- function(hourlyMod) {
 
     ## Need to sum lcdMod2 by date,
