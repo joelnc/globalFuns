@@ -5,6 +5,119 @@ library(DT)
 ## Collection of support functions for filtering NOAA LCD records
 ## down to match GHCN daily totals
 
+summaryFun <- function(hourlyMod) {
+    ######################################################################
+    # Print site nubmer from lcd and cdo 
+    print(paste("Site: ", lcd$id[1]))
+    print(paste("Site: ", cdo$STATION[1]))
+    print(paste("Site: ", cdo$STATION_NAME[1]))
+    print("......................................")
+
+    ######################################################################
+    ## GHCN data
+    date1 <- daily$dt[min(which(daily$dt %in% dat1$Date))]
+    date2 <- daily$dt[max(which(daily$dt %in% dat1$Date))]
+    fullDates <- seq.Date(date1, date2, by="day")
+
+    useDaily <- daily %>%
+        filter(dt<as.Date("2019-01-01"),
+               dt>=min(hourlyMod$Date, na.rm=TRUE))
+    
+    missingDates <- useDaily$dt[which(!(fullDates %in% useDaily$dt))]
+    naDates <- useDaily$dt[which(is.na(useDaily$pcpIn))]
+    print(paste("GHCN Records to use:", date1, "-", date2))
+    print(paste("GHCN days not present in records:", length(missingDates)))
+    print(paste("GHCN days with NA records:", length(naDates)))
+    print("......................................")
+
+    ######################################################################
+    ## Sums/houlryMod condition rel to GHCN
+    ghcnSum <- sum(useDaily$pcpIn, na.rm=TRUE)
+    hrSum <- sum(hourlyMod$pcp, na.rm=TRUE)
+    totDiff <- hrSum-ghcnSum
+
+    print(paste("Daily/GHCN Sum:", round(ghcnSum,1)))
+    print(paste("Hourly LCD/CDO Sum:", round(hrSum,1)))
+
+    if (totDiff<0) {
+        print(paste("Mising from Hourlies:", round(totDiff,1), "inches"))
+    } else if (totDiff>0) {
+        print(paste("Extra Precip in Hourlies:", round(totDiff,1), "inches"))
+    } else {
+        print("No difference!")
+    }
+
+    ######################################################################
+    ## Do annual  diffs, return summary level info
+
+    ## Group adjusted hourly records by date, sum by date
+    hrDaily <- hourlyMod %>%
+        group_by(Date) %>%
+        summarize(hourlyDailyP=sum(pcp, na.rm=TRUE)) %>%
+        mutate(yr=as.numeric(format(Date, "%Y"))) %>%
+        as.data.frame()
+    
+    ## Then merge hourly date totals with gncn date totals
+    newTab <- merge(hrDaily, daily, by.x="Date", by.y="dt", all=TRUE)
+    
+    ## Abs daily diffs, for summing by year
+    newTab$absDailyDiff <- abs(newTab$pcpIn-newTab$hourlyDailyP)
+    
+    ## Daily diffs, for identifying biggest daily diff per cal yr 
+    newTab$rawDailyDiff <- newTab$pcpIn-newTab$hourlyDailyP # pos=ghcn higher
+    
+    ## Then sum of abs diffs grouped by year
+    finalTab <- newTab %>%
+        group_by(yr.y) %>%
+        summarize(absAnnSum=sum(absDailyDiff, na.rm=TRUE)) %>% #,
+                  ## annMaxDif=max(rawDailyDiff,na.rm=TRUE)) %>%
+        as.data.frame()
+
+    nYears <- length(which(finalTab$absAnnSum>=0.25))
+    listYears <- finalTab$yr.y[which(finalTab$absAnnSum>=0.25)]
+
+    print(paste("Number of yrs with 0.25 inch discrep:", nYears))
+    print("Yrs with 0.25 inch discrep:...")
+    print(listYears)
+
+    ######################################################################
+    ## Lastly, do number of days with 0.10" discrps
+
+    ## Group hourly data in to a year daily table
+    hrData <- hourlyMod %>%
+        group_by(Date) %>%
+        summarize(dailyHrSum=sum(pcp, na.rm=TRUE)) %>%
+        as.data.frame()
+    
+    ## Then merge hourly date totals with gncn date totals
+    newTab <- merge(hrData, daily, by.x="Date", by.y="dt", all=TRUE)
+    newTab$DailyDiff <- newTab$pcpIn-newTab$dailyHrSum
+    
+    ## Sort by abs value and return
+    newTab$AbsDailyDiff <- abs(newTab$DailyDiff)
+    newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
+
+    ## Summary and print
+    nDays <- length(which(newTab$AbsDailyDiff>=0.05))
+    top15 <- newTab[1:15,c("Date","DailyDiff")]
+
+    print(paste("Number of days with 0.05 inches discrep:",nDays))
+    print("Top 15:")
+    top15
+    
+    
+    ## This shoudl return
+    ## - Start date, end date, days missing in GHCN (rel to earliest hourly)
+    ## - Sum of dailies, sum of hourlies, diff
+    ## - List of years with ann diff >0.25"
+    ## - # of days with daily diff >0.10"
+
+    
+
+}
+
+
+
 ## fun to take final hourly data set and compute hr/daily discrepencies by year,
 ## write out to a csv that i cna add notes to / cross check
 reportFun <- function(hourlyMod) {
@@ -92,21 +205,7 @@ minFun <- function(hourlyMod, year) {
 
 
 ## Print sorted table to console of annual discrepencies
-<<<<<<< HEAD
-tableFun <- function(hourlyMod) {
-
-    mm <- merge(dailyTab, hourlyMod, all=TRUE)
-    colnames(mm)<- c("yr", "daily" ,"hourly")
-    mm$Diff <- mm$hourly-mm$daily
-    mm <- mm[order(mm$Diff, decreasing=TRUE),]
-    head(mm,20)
-}
-
-## Print sorted table to console of abs annual discrepencies
-tableFunAbs <- function(hourlyMod) {
-=======
 tableFunAbs <- function(hourlyMod, sortBy) {
->>>>>>> b998a3c126740bad073558439417c0cc928c4cc3
 
     ## Group adjusted hourly records by date, sum by date
     hrDaily <- hourlyMod %>%
@@ -132,7 +231,7 @@ tableFunAbs <- function(hourlyMod, sortBy) {
         as.data.frame()
     
     ## Initialize columns in final table for max daily discrepencies
-   finalTab$maxDailyDiff <- NA
+    finalTab$maxDailyDiff <- NA
     finalTab$diffDate <- as.Date(NA)
 
     ## loop over table and write. Clunky, but fast enough
