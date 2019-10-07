@@ -26,8 +26,12 @@ summaryFun <- function(hourlyMod) {
     missingDates <- useDaily$dt[which(!(fullDates %in% useDaily$dt))]
     naDates <- useDaily$dt[which(is.na(useDaily$pcpIn))]
     print(paste("GHCN Records to use:", date1, "-", date2))
-    print(paste("GHCN days not present in records:", length(missingDates)))
-    print(paste("GHCN days with NA records:", length(naDates)))
+    print(paste("GHCN days not present in records:",
+                length(missingDates),
+                "days"))
+    print(paste("GHCN days with NA records:",
+                length(naDates),
+                "days"))
     print("......................................")
 
     ######################################################################
@@ -40,7 +44,8 @@ summaryFun <- function(hourlyMod) {
     print(paste("Hourly LCD/CDO Sum:", round(hrSum,1)))
 
     if (totDiff<0) {
-        print(paste("Mising from Hourlies:", round(totDiff,1), "inches"))
+        print(paste("Mising from Hourlies (neg=extra in hourlies):",
+                    round(totDiff,1), "inches"))
     } else if (totDiff>0) {
         print(paste("Extra Precip in Hourlies:", round(totDiff,1), "inches"))
     } else {
@@ -76,8 +81,10 @@ summaryFun <- function(hourlyMod) {
     nYears <- length(which(finalTab$absAnnSum>=0.25))
     listYears <- finalTab$yr.y[which(finalTab$absAnnSum>=0.25)]
 
-    print(paste("Number of yrs with 0.25 inch discrep:", nYears))
-    print("Yrs with 0.25 inch discrep:...")
+    print(paste("Number of yrs with 0.25 inch discrep:",
+                nYears,
+                "years"))
+    print("List of years with 0.25+ inch discrep:...")
     print(listYears)
 
     ######################################################################
@@ -101,8 +108,10 @@ summaryFun <- function(hourlyMod) {
     nDays <- length(which(newTab$AbsDailyDiff>=0.05))
     top15 <- newTab[1:15,c("Date","DailyDiff")]
 
-    print(paste("Number of days with 0.05 inches discrep:",nDays))
-    print("Top 15:")
+    print(paste("Number of days with 0.05 inches discrep:",
+                nDays,
+                "days"))
+    print("Top 15 daily discrepencies:")
     top15
     
     
