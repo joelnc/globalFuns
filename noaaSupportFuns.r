@@ -44,7 +44,7 @@ summaryFun <- function(hourlyMod) {
     print(paste("Hourly LCD/CDO Sum:", round(hrSum,1)))
 
     if (totDiff<0) {
-        print(paste("Mising from Hourlies (neg=extra in hourlies):",
+        print(paste("Mising from Hourlies (pos=extra in hourlies):",
                     round(totDiff,1), "inches"))
     } else if (totDiff>0) {
         print(paste("Extra Precip in Hourlies:", round(totDiff,1), "inches"))
@@ -113,21 +113,11 @@ summaryFun <- function(hourlyMod) {
                 "days"))
     print("Top 15 daily discrepencies:")
     top15
-    
-    
-    ## This shoudl return
-    ## - Start date, end date, days missing in GHCN (rel to earliest hourly)
-    ## - Sum of dailies, sum of hourlies, diff
-    ## - List of years with ann diff >0.25"
-    ## - # of days with daily diff >0.10"
-
-    
-
 }
 
 
 
-## fun to take final hourly data set and compute hr/daily discrepencies by year,
+## Fun to take final hourly data set and compute hr/daily discrepencies by year,
 ## write out to a csv that i cna add notes to / cross check
 reportFun <- function(hourlyMod) {
 
