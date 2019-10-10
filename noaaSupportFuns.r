@@ -267,7 +267,7 @@ tableFunAbs <- function(hourlyMod, sortBy) {
 ## return table of daily diffs for given calendar year
 dailyDiffsTable <- function(hourlyMod, year) {
 
-    ## filter and group hourly data in to a year specifici daily table
+    ## Filter and group processed hourly data in to a year specifici daily table
     hrData <- hourlyMod %>%
         mutate(yr=as.numeric(format(Date, "%Y"))) %>%
         filter(yr==year) %>%
@@ -277,16 +277,47 @@ dailyDiffsTable <- function(hourlyMod, year) {
 
     ## Filter daily down to year of interst only 
     dailyF <- daily %>%
-        filter(yr==year)
-    
+        filter(yr==year) %>%
+        select(dt, GHCN=pcpIn) %>%
+        as.data.frame()
+
+    ## Filter and group CDO
+    cdoYr <- cdo %>%
+        filter(yr==year) %>%
+        mutate(Date=as.Date(dtLoc, origin="1970-01-01")) %>%
+        group_by(Date) %>%
+        summarize(cdoTot=sum(HPCP, na.rm=TRUE)) %>%
+        select(Date, cdoTot) %>%
+        as.data.frame()
+
+    ## Filter and group LCD
+    lcdYr <- lcd %>%
+        filter(yr==year) %>%
+        group_by(Date) %>%
+        summarize(lcdTotRAW=sum(pcp, na.rm=TRUE)) %>%
+        select(Date, lcdTot) %>%
+        as.data.frame()
+       
     ## Then merge hourly date totals with gncn date totals
     newTab <- merge(hrData, dailyF, by.x="Date", by.y="dt", all=TRUE)
-    newTab$DailyDiff <- newTab$pcpIn-newTab$dailyHrSum
+    newTab$DailyDiff <- newTab$GHCN-newTab$dailyHrSum
     
-    ## Sort by abs value and return
+    ## Tack on abs value
     newTab$AbsDailyDiff <- abs(newTab$DailyDiff)
+
+    ## Then Append CDO and LCD daily totals to output table
+    newTab <- merge(newTab, cdoYr, by="Date", all=TRUE)
+    newTab <- merge(newTab, lcdYr, by="Date", all=TRUE)
+
+    ## Sort by daily diff
     newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
-    head(newTab[,c(1,2,4,5,8)],60)
+
+    ## Round for output
+    newTab$GHCN <- round(newTab$GHCN, digits=3) 
+    newTab$DailyDiff <- round(newTab$DailyDiff, digits=3) 
+    newTab$AbsDailyDiff <- round(newTab$AbsDailyDiff, digits=3) 
+    
+    head(newTab,60)
 
 }
 
