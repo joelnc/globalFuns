@@ -281,10 +281,11 @@ dailyDiffsTable <- function(hourlyMod, year) {
         select(dt, GHCN=pcpIn) %>%
         as.data.frame()
 
+    useTz <- attr(lcd$dtLoc[1], "tzone")
     ## Filter and group CDO
     cdoYr <- cdo %>%
         filter(yr==year) %>%
-        mutate(Date=as.Date(dtLoc, origin="1970-01-01")) %>%
+        mutate(Date=as.Date(dtLoc, origin="1970-01-01", tz=useTz)) %>%
         group_by(Date) %>%
         summarize(cdoTot=sum(HPCP, na.rm=TRUE)) %>%
         select(Date, cdoTot) %>%
@@ -295,7 +296,7 @@ dailyDiffsTable <- function(hourlyMod, year) {
         filter(yr==year) %>%
         group_by(Date) %>%
         summarize(lcdTotRAW=sum(pcp, na.rm=TRUE)) %>%
-        select(Date, lcdTot) %>%
+        select(Date, lcdTotRAW) %>%
         as.data.frame()
        
     ## Then merge hourly date totals with gncn date totals
