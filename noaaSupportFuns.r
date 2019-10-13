@@ -133,19 +133,30 @@ reportFun <- function(hourlyMod) {
     
     ## Sort by abs value and return
     newTab$AbsDailyDiff <- abs(newTab$DailyDiff)
+    ## newTab$yr <- as.numeric(format(newTab$Date, "%Y"))
+    
+    ## newTabSort <- newTab[with(newTab, order(Date, -AbsDailyDiff)),]
 
     newTabSort <- newTab %>%
         mutate(yr=as.numeric(format(Date, "%Y"))) %>%
-        group_by(yr) %>%
-        arrange(desc(AbsDailyDiff)) %>%
+        arrange(yr,desc(AbsDailyDiff)) %>%
         as.data.frame()
     
+    ## newTabSort <- newTab %>%
+    ##     mutate(yr=as.numeric(format(Date, "%Y"))) %>%
+    ##     group_by(yr) %>%
+    ##     arrange(desc(AbsDailyDiff)) %>%
+    ##     as.data.frame()
+    
 
-    newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
+    ## newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
 
-    write.csv(newTabSort[which(newTabSort$AbsDailyDiff>=0.05),],
-              file="reportTest.csv")
-    return(newTabSort[which(newTabSort$AbsDailyDiff>=0.05),c(1,2,4,5,8)])
+    newTabWrite <- newTabSort %>%
+        filter(AbsDailyDiff>=0.05)
+    
+    write.csv(newTabWrite, file="reportTest.csv", row.names=FALSE)
+    return(newTabWrite[,c(1,2,5,7,8)])
+    ## return(newTabSort[which(newTabSort$AbsDailyDiff>=0.05),c(1,2,4,5,8)])
     ## head(newTabSort[,c(1,2,4,5,8)],40)
     ## head(newTab[,c(1,2,4,5,8)],40)
 }
@@ -318,8 +329,35 @@ dailyDiffsTable <- function(hourlyMod, year) {
     newTab$DailyDiff <- round(newTab$DailyDiff, digits=3) 
     newTab$AbsDailyDiff <- round(newTab$AbsDailyDiff, digits=3) 
     
-    head(newTab,60)
 
+    ## Write csvs
+    ## Filter combined hourly down to yr of interst
+    comb_hourly <- hourlyMod %>%
+        filter(yr==year)
+    ## Also filter down pure cdo and lcd for confirming gaps, etc
+    lcdCur <- lcd %>%
+        filter(yr==year) %>%
+        select(DATE,REPORT_TYPE,SOURCE,dtLoc,pcp,pcpFlag,
+               HourlyPrecipitation, min)
+    cdoCur <- cdo %>%
+        filter(yr==year) %>%
+        select(STATION,HPCP,Measurement.Flag,
+               Quality.Flag, dt, dtLoc, min, hrMin)
+
+    
+    ## Csv file for combined yr
+    write.table(comb_hourly[,1:8],
+                file=paste0("NOAA/combHourly_", year,".csv"),
+                sep=",", row.names=FALSE)
+    ## Csv files rawish lcd and cdo
+    write.table(lcdCur,
+                file=paste0("NOAA/lcd_", year,".csv"),
+                sep=",", row.names=FALSE)
+    write.table(cdoCur,
+                file=paste0("NOAA/cdo_", year,".csv"),
+                sep=",", row.names=FALSE)
+
+    head(newTab,60)
 }
 
 
@@ -345,16 +383,6 @@ ddfFun <- function(hourlyMod, year) {
     ## Filter daily down to year of interst only 
     dailyF <- daily %>%
         filter(yr==year)
-
-    ## Also filter down pure cdo and lcd for confirming gaps, etc
-    lcdCur <- lcd %>%
-        filter(yr==year) %>%
-        select(DATE,REPORT_TYPE,SOURCE,dtLoc,pcp,pcpFlag,
-               HourlyPrecipitation, min)
-    cdoCur <- cdo %>%
-        filter(yr==year) %>%
-        select(STATION,HPCP,Measurement.Flag,
-               Quality.Flag, dt, dtLoc, min, hrMin)
     
 
     ## Colors and plotting of daily vs combined hourly
@@ -374,17 +402,6 @@ ddfFun <- function(hourlyMod, year) {
                   name="HPCP/LCD",          
                   marker = list (color = lcdCol, symbol="circle")
                   )
-    ## Csv file for combined yr
-    write.table(comb_hourly[,1:8],
-                file=paste0("NOAA/combHourly_", year,".csv"),
-                sep=",", row.names=FALSE)
-    ## Csv files rawish lcd and cdo
-    write.table(lcdCur,
-                file=paste0("NOAA/lcd_", year,".csv"),
-                sep=",", row.names=FALSE)
-    write.table(cdoCur,
-                file=paste0("NOAA/cdo_", year,".csv"),
-                sep=",", row.names=FALSE)
 
     
     ## Plot call
