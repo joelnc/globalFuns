@@ -133,26 +133,39 @@ reportFun <- function(hourlyMod) {
     
     ## Sort by abs value and return
     newTab$AbsDailyDiff <- abs(newTab$DailyDiff)
-    ## newTab$yr <- as.numeric(format(newTab$Date, "%Y"))
-    
-    ## newTabSort <- newTab[with(newTab, order(Date, -AbsDailyDiff)),]
 
+    ## sort 
     newTabSort <- newTab %>%
         mutate(yr=as.numeric(format(Date, "%Y"))) %>%
         arrange(yr,desc(AbsDailyDiff)) %>%
         as.data.frame()
     
-    ## newTabSort <- newTab %>%
-    ##     mutate(yr=as.numeric(format(Date, "%Y"))) %>%
-    ##     group_by(yr) %>%
-    ##     arrange(desc(AbsDailyDiff)) %>%
-    ##     as.data.frame()
-    
 
-    ## newTab <- newTab[order(newTab$AbsDailyDiff, decreasing=TRUE),]
-
+    ## Filter to 0.05" discrp days 
     newTabWrite <- newTabSort %>%
         filter(AbsDailyDiff>=0.05)
+
+    ## This is going ot be a mess... loop over newTabWrite, for eadh day
+    ## get cdo and lcdRaw totals
+    newTabWrite$cdoTot <- as.numeric(NA)
+    for (i in 1:nrow(newTabWrite)) {
+        cdoSum <- cdoUse %>%
+            filter(Date==newTabWrite$Date[i]) %>%
+            mutate(sumVal=sum(pcp,na.rm=TRUE)) %>%
+            as.data.frame()
+        newTabWrite$cdoTot[i] <- cdoSum$sumVal[1]
+
+    }
+
+    ## do lcd
+    newTabWrite$lcdTotRAW <- as.numeric(NA)
+    for (i in 1:nrow(newTabWrite)) {
+        lcdSum <- lcd %>%
+            filter(Date==newTabWrite$Date[i]) %>%
+            mutate(sumVal=sum(pcp,na.rm=TRUE)) %>%
+            as.data.frame()
+        newTabWrite$lcdTotRAW[i] <- lcdSum$sumVal[1]
+    }
     
     write.csv(newTabWrite, file="reportTest.csv", row.names=FALSE)
     return(newTabWrite[,c(1,2,5,7,8)])
