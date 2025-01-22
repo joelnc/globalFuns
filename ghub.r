@@ -3,7 +3,7 @@
 ## M-x eval-region
 (ghub-post "/user/repos"
            '(
-             (name . "Monitoring-Station-Delineation")
+             (name . "fecal-thresholds")
              (private . t)
              )
            )
